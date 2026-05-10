@@ -20,6 +20,7 @@ export interface DisplayTime {
   sku: string;
   name: string;
   startedAt: string;
+  note?: string;
 }
 
 export interface InventoryData {

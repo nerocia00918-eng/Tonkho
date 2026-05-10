@@ -13,7 +13,10 @@ import {
   Package,
   Store,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Calendar,
+  Save,
+  MessageSquare
 } from 'lucide-react';
 import { InventoryData, Product, Stats, DisplayItem, Category } from './types';
 import { cn, formatCurrency, categorizeProduct } from './lib/utils';
@@ -540,6 +543,9 @@ function RestockTab({ data, searchQuery, categoryFilter }: { data: InventoryData
 }
 
 function DisplayTab({ data, searchQuery, handleSync, syncing }: { data: InventoryData, searchQuery: string, handleSync: (type: string, payload: any) => void, syncing: boolean }) {
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
+  const [editingDates, setEditingDates] = useState<Record<string, string>>({});
+
   const displayStock = data.Tba || [];
   const displayTimes = data['Data Tba'] || [];
   const stats = data.tk || [];
@@ -558,6 +564,26 @@ function DisplayTab({ data, searchQuery, handleSync, syncing }: { data: Inventor
       missingMaxStock: !tbaItem || !tbaItem.maxStock || tbaItem.maxStock === 0
     };
   });
+
+  const onSync = async (type: string, payload: any) => {
+    await handleSync(type, payload);
+    if (type === 'DataTba_UPDATE') {
+      if (payload.note !== undefined) {
+        setEditingNotes(prev => {
+          const next = { ...prev };
+          delete next[payload.sku];
+          return next;
+        });
+      }
+      if (payload.startedAt !== undefined) {
+        setEditingDates(prev => {
+          const next = { ...prev };
+          delete next[payload.sku];
+          return next;
+        });
+      }
+    }
+  };
 
   const filteredItems = displayTimes.filter(item => 
     item.sku.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -611,7 +637,7 @@ function DisplayTab({ data, searchQuery, handleSync, syncing }: { data: Inventor
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleSync('DataTba_UPDATE', { sku: s.sku, name: s.name, startedAt: new Date().toISOString() })}
+                  onClick={() => onSync('DataTba_UPDATE', { sku: s.sku, name: s.name, startedAt: new Date().toISOString() })}
                   disabled={syncing}
                   className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-50 shrink-0"
                 >
@@ -638,38 +664,89 @@ function DisplayTab({ data, searchQuery, handleSync, syncing }: { data: Inventor
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-900/50 border-b border-slate-800">
                 <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  <th className="px-4 py-3">Sản phẩm</th>
+                  <th className="px-4 py-3">Sản phẩm / Ghi chú</th>
                   <th className="px-4 py-3 text-center">Tồn / Max</th>
+                  <th className="px-4 py-3 text-center">Thời gian</th>
                   <th className="px-4 py-3 text-right">Tình trạng</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {filteredItems.map(item => {
                   const days = differenceInDays(new Date(), parseISO(item.startedAt));
-                  const isWarning = days >= 30;
+                  const isCritical = days >= 30;
+                  const isWarning = days >= 20 && days < 30;
+                  
                   return (
                     <tr key={item.sku} className="hover:bg-slate-800/40 transition-colors">
                       <td className="px-4 py-4">
-                        <p className="text-sm font-bold text-slate-100 truncate max-w-[150px]">{item.name}</p>
+                        <p className="text-sm font-bold text-slate-100 truncate max-w-[200px]">{item.name}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-mono text-slate-500">{item.sku}</span>
-                          <span className="text-[9px] text-slate-400 bg-slate-800 px-1 rounded">Từ: {new Date(item.startedAt).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 group/note">
+                          <MessageSquare size={12} className="text-slate-500" />
+                          <input 
+                            type="text"
+                            placeholder="Thêm ghi chú..."
+                            value={editingNotes[item.sku] ?? item.note ?? ''}
+                            onChange={(e) => setEditingNotes(prev => ({ ...prev, [item.sku]: e.target.value }))}
+                            className="bg-transparent border-b border-transparent group-hover/note:border-slate-700 focus:border-emerald-500 focus:outline-none text-[11px] text-slate-400 w-full transition-all"
+                          />
+                          {(editingNotes[item.sku] !== undefined && editingNotes[item.sku] !== item.note) && (
+                            <button 
+                              onClick={() => onSync('DataTba_UPDATE', { sku: item.sku, note: editingNotes[item.sku] })}
+                              disabled={syncing}
+                              className="text-emerald-500 hover:text-emerald-400"
+                            >
+                              <Save size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
                         <p className="text-sm font-bold text-white">{item.stock}</p>
                         <p className="text-[9px] text-slate-500">MAX: {item.maxStock || '?'}</p>
                       </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-2 group/date">
+                            <input 
+                              type="date"
+                              value={(editingDates[item.sku] ?? item.startedAt).split('T')[0]}
+                              onChange={(e) => setEditingDates(prev => ({ ...prev, [item.sku]: new Date(e.target.value).toISOString() }))}
+                              className="bg-slate-900 border border-slate-800 rounded px-1 py-0.5 text-[10px] text-slate-300 focus:outline-none focus:border-emerald-500"
+                            />
+                            {(editingDates[item.sku] !== undefined && editingDates[item.sku] !== item.startedAt) && (
+                              <button 
+                                onClick={() => onSync('DataTba_UPDATE', { sku: item.sku, startedAt: editingDates[item.sku] })}
+                                disabled={syncing}
+                                className="text-emerald-500 hover:text-emerald-400"
+                              >
+                                <Save size={12} />
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-[9px] text-slate-500 uppercase font-bold">{days} ngày</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-4 text-right">
-                        {isWarning ? (
+                        {isCritical ? (
                           <div className="flex flex-col items-end">
                             <Badge variant="warning">Hạ kệ ưu tiên</Badge>
-                            <span className="text-[10px] text-rose-400 font-bold mt-1 uppercase tracking-tighter">{days} ngày</span>
+                            <span className="text-[9px] text-rose-400 font-bold mt-1 uppercase animate-pulse">Quá 30 ngày</span>
+                          </div>
+                        ) : isWarning ? (
+                          <div className="flex flex-col items-end">
+                            <div className="bg-amber-500/20 text-amber-500 text-[10px] px-2 py-0.5 rounded-full font-bold border border-amber-500/30">
+                              Lưu ý hạ kệ
+                            </div>
+                            <span className="text-[9px] text-amber-500 mt-1 uppercase font-medium">Sắp tới hạn</span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-end">
-                            <span className="text-sm font-black text-emerald-400 leading-none">{days}</span>
-                            <span className="text-[9px] text-slate-500 uppercase font-bold mt-0.5">Ngày</span>
+                            <div className="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold border border-emerald-500/10">
+                              Ổn định
+                            </div>
                           </div>
                         )}
                       </td>

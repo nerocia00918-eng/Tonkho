@@ -55,6 +55,7 @@ function getData() {
         else if (h === 'số lượng tồn' || h === 'tồn') obj.stock = val;
         else if (h === 'tồn max' || h === 'max') obj.maxStock = val;
         else if (h === 'thời gian' || h === 'ngày bắt đầu trưng bày') obj.startedAt = val;
+        else if (h === 'ghi chú' || h === 'note') obj.note = val;
         
         // Map stats columns
         else if (h === 'số lượng bán lẻ' || h === 'sales') obj.sales30d = val;
@@ -88,14 +89,15 @@ function doPost(e) {
     
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === sku) { // Cột A là mã
-        sheet.getRange(i + 1, 3).setValue(params.payload.startedAt); // Cột C là thời gian
+        if (params.payload.startedAt) sheet.getRange(i + 1, 3).setValue(params.payload.startedAt); // Cột C là thời gian
+        if (params.payload.hasOwnProperty('note')) sheet.getRange(i + 1, 4).setValue(params.payload.note); // Cột D là ghi chú
         found = true;
         break;
       }
     }
     
     if (!found) {
-      sheet.appendRow([sku, params.payload.name, params.payload.startedAt]);
+      sheet.appendRow([sku, params.payload.name, params.payload.startedAt || '', params.payload.note || '']);
     }
     
     return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
