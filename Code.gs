@@ -83,21 +83,29 @@ function doPost(e) {
   
   if (params.type === 'DataTba_UPDATE') {
     const sheet = ss.getSheetByName(CONFIG.DATA_TBA);
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: 'Sheet Data Tba not found' })).setMimeType(ContentService.MimeType.JSON);
+    
     const data = sheet.getDataRange().getValues();
-    const sku = params.payload.sku;
+    const sku = String(params.payload.sku);
     let found = false;
     
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === sku) { // Cột A là mã
-        if (params.payload.startedAt) sheet.getRange(i + 1, 3).setValue(params.payload.startedAt); // Cột C là thời gian
-        if (params.payload.hasOwnProperty('note')) sheet.getRange(i + 1, 4).setValue(params.payload.note); // Cột D là ghi chú
-        found = true;
-        break;
+    if (data.length > 1) {
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]) === sku) { // Cột A là mã
+          if (params.payload.startedAt) sheet.getRange(i + 1, 3).setValue(params.payload.startedAt); // Cột C là thời gian
+          if (params.payload.hasOwnProperty('note')) sheet.getRange(i + 1, 4).setValue(params.payload.note); // Cột D là ghi chú
+          found = true;
+          break;
+        }
       }
     }
     
     if (!found) {
-      sheet.appendRow([sku, params.payload.name, params.payload.startedAt || '', params.payload.note || '']);
+      // Nếu chưa có, tạo dòng mới (cần có name)
+      const name = params.payload.name || '';
+      const date = params.payload.startedAt || new Date().toISOString();
+      const note = params.payload.note || '';
+      sheet.appendRow([sku, name, date, note]);
     }
     
     return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))

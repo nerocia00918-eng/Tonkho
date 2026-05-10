@@ -83,14 +83,21 @@ export default function App() {
   const handleSync = async (type: string, payload: any) => {
     setSyncing(true);
     try {
-      await fetch('/api/sync', {
+      const response = await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, payload })
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Sync failed');
+      }
+      
       await fetchData();
     } catch (err) {
-      console.error(err);
+      console.error('Sync Error:', err);
+      alert(`Lỗi đồng bộ: ${err instanceof Error ? err.message : 'Hãy kiểm tra lại quyền truy cập của Google Script'}`);
     } finally {
       setSyncing(false);
     }
@@ -694,7 +701,7 @@ function DisplayTab({ data, searchQuery, handleSync, syncing }: { data: Inventor
                           />
                           {(editingNotes[item.sku] !== undefined && editingNotes[item.sku] !== item.note) && (
                             <button 
-                              onClick={() => onSync('DataTba_UPDATE', { sku: item.sku, note: editingNotes[item.sku] })}
+                              onClick={() => onSync('DataTba_UPDATE', { sku: item.sku, name: item.name, note: editingNotes[item.sku] })}
                               disabled={syncing}
                               className="text-emerald-500 hover:text-emerald-400"
                             >
@@ -718,7 +725,7 @@ function DisplayTab({ data, searchQuery, handleSync, syncing }: { data: Inventor
                             />
                             {(editingDates[item.sku] !== undefined && editingDates[item.sku] !== item.startedAt) && (
                               <button 
-                                onClick={() => onSync('DataTba_UPDATE', { sku: item.sku, startedAt: editingDates[item.sku] })}
+                                onClick={() => onSync('DataTba_UPDATE', { sku: item.sku, name: item.name, startedAt: editingDates[item.sku] })}
                                 disabled={syncing}
                                 className="text-emerald-500 hover:text-emerald-400"
                               >

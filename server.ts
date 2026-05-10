@@ -87,10 +87,19 @@ async function startServer() {
         body: JSON.stringify({ type, payload })
       });
       
-      const result = await response.json();
-      res.json(result);
+      const text = await response.text();
+      try {
+        const result = JSON.parse(text);
+        res.json(result);
+      } catch (parseError) {
+        console.error("GAS returned non-JSON response:", text.substring(0, 500));
+        res.status(500).json({ 
+          error: "Google Apps Script returned an invalid response (not JSON)",
+          details: text.substring(0, 200)
+        });
+      }
     } catch (error) {
-      console.error("Error syncing to GAS:", error);
+      console.error("CRITICAL: Error syncing to GAS:", error);
       res.status(500).json({ error: "Failed to sync data to Google Sheets" });
     }
   });
