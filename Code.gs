@@ -45,22 +45,26 @@ function getData() {
     result[sheetName] = data.map(row => {
       const obj = {};
       headers.forEach((header, i) => {
-        // Map common columns
-        if (header === 'Mã hàng' || header === 'Mã') obj.sku = row[i];
-        else if (header === 'Tên hàng' || header === 'Tên') obj.name = row[i];
-        else if (header === 'Giá bán lẻ') obj.price = row[i];
-        else if (header === 'Số lượng tồn') obj.stock = row[i];
-        else if (header === 'Tồn Max') obj.maxStock = row[i];
-        else if (header === 'Thời gian' || header === 'Ngày bắt đầu trưng bày') obj.startedAt = row[i];
+        const h = String(header).trim().toLowerCase();
+        const val = row[i];
+        
+        // Map common columns (Case-insensitive)
+        if (h === 'mã hàng' || h === 'mã' || h === 'sku') obj.sku = val;
+        else if (h === 'tên hàng' || h === 'tên' || h === 'tên sản phẩm') obj.name = val;
+        else if (h === 'giá bán lẻ' || h === 'giá') obj.price = val;
+        else if (h === 'số lượng tồn' || h === 'tồn') obj.stock = val;
+        else if (h === 'tồn max' || h === 'max') obj.maxStock = val;
+        else if (h === 'thời gian' || h === 'ngày bắt đầu trưng bày') obj.startedAt = val;
         
         // Map stats columns
-        else if (header === 'Số lượng bán lẻ') obj.sales30d = row[i];
-        else if (header === 'SO Pending') obj.soPending = row[i];
-        else if (header === 'Khuyến mãi V2') obj.promo = (row[i] === true || row[i] === 'V2' || row[i] === 'KM');
-        else if (header === 'Nhập nội bộ') obj.intImp = row[i];
-        else if (header === 'Xuất nội bộ') obj.intExp = row[i];
+        else if (h === 'số lượng bán lẻ' || h === 'sales') obj.sales30d = val;
+        else if (h === 'so pending' || h === 'so') obj.soPending = val;
+        else if (h === 'khuyến mãi v2' || h === 'promo') obj.promo = (val === true || val === 'V2' || val === 'KM' || val === 'X');
+        else if (h === 'nhập nội bộ') obj.intImp = val;
+        else if (h === 'xuất nội bộ') obj.intExp = val;
         
-        else obj[header] = row[i];
+        // Fallback to original header name
+        obj[header] = val;
       });
       return obj;
     });

@@ -48,18 +48,26 @@ async function startServer() {
     };
 
     try {
+      console.log("Attempting to fetch from GAS:", GAS_URL.substring(0, 40) + "...");
       const response = await fetch(GAS_URL);
-      if (!response.ok) throw new Error(`GAS returned ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`GAS returned ${response.status}: ${errorText}`);
+      }
       const data = await response.json();
+      console.log("Data received from GAS. Keys:", Object.keys(data));
+      
       const mergedData = { ...defaultStructure, ...data };
       cachedData = mergedData;
       res.json(mergedData);
     } catch (error) {
-      console.error("Error fetching from GAS:", error);
+      console.error("CRITICAL: Error fetching from GAS:", error);
       if (cachedData) {
+        console.log("Serving from cached data.");
         res.json(cachedData);
       } else {
-        res.json(defaultStructure); // Return empty structure instead of 500 to keep UI alive
+        console.log("No cache available, returning default structure.");
+        res.json(defaultStructure); 
       }
     }
   });
